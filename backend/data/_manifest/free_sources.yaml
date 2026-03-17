@@ -1,0 +1,32 @@
+sources:
+  - source_id: pg-how-to-start
+    persona_scope: paul_graham
+    url: https://paulgraham.com/start.html
+    title_hint: How to Start a Startup
+    license_note: Public essay
+
+  - source_id: pg-maker-schedule
+    persona_scope: paul_graham
+    url: https://paulgraham.com/makersschedule.html
+    title_hint: Maker's Schedule, Manager's Schedule
+    license_note: Public essay
+
+  - source_id: lenny-pmf-guide
+    persona_scope: operator_collective
+    url: https://www.lennysnewsletter.com/p/how-to-find-product-market-fit
+    title_hint: Product market fit article
+    license_note: Public/free post where available
+    framework_tags: ["product-market-fit"]
+
+  - source_id: stratechery-google-ai
+    persona_scope: ben_thompson
+    url: https://stratechery.com/2023/google-and-the-age-of-ai/
+    title_hint: Google and the Age of AI
+    license_note: Public/free post where available
+    framework_tags: ["aggregation-theory"]
+
+  - source_id: shreyas-sample
+    persona_scope: shreyas
+    url: https://review.firstround.com/the-pm-interview-how-to-spot-a-product-owner/
+    title_hint: Product owner heuristics (proxy sample)
+    license_note: Public sample placeholder for v1

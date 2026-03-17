@@ -1,0 +1,57 @@
+export type PersonaId = "paul_graham" | "shreyas" | "operator_collective" | "ben_thompson";
+
+export interface Citation {
+  source_id: string;
+  title: string;
+  url: string;
+  excerpt: string;
+  framework_tag?: string | null;
+}
+
+export interface PersonaResponse {
+  persona_id: PersonaId;
+  persona_name: string;
+  response: string;
+  citations: Citation[];
+}
+
+export interface ClashResult {
+  friction_point: string;
+  why_it_matters: string;
+  tradeoff_axes: string[];
+}
+
+export interface Actions306090 {
+  days_0_30: string[];
+  days_31_60: string[];
+  days_61_90: string[];
+}
+
+export interface SynthesisResult {
+  recommendation: string;
+  actions_30_60_90: Actions306090;
+  risks: string[];
+  leading_indicators: string[];
+}
+
+export interface CouncilSession {
+  session_id: string;
+  created_at: string;
+  query: string;
+  round_table: PersonaResponse[];
+  clash: ClashResult;
+  synthesis: SynthesisResult;
+}
+
+export interface SessionListItem {
+  session_id: string;
+  created_at: string;
+  query: string;
+  friction_summary?: string | null;
+  synthesis_summary?: string | null;
+}
+
+export interface SessionListResponse {
+  items: SessionListItem[];
+  total: number;
+}
