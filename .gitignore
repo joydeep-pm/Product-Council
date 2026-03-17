@@ -12,6 +12,7 @@ frontend/.env.local
 # Node
 node_modules/
 .next/
+*.tsbuildinfo
 
 # Misc
 .DS_Store
