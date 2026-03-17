@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { createSession, getSession, listSessions } from "@/lib/api";
+import { ApiClientError, createSession, getSession, listSessions } from "@/lib/api";
 import { CouncilSession, SessionListItem } from "@/types/council";
 
 type Mode = "idle" | "running" | "loaded" | "error";
@@ -14,7 +14,12 @@ export function useCouncilSession() {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [activeSession, setActiveSession] = useState<CouncilSession | null>(null);
   const [isHistoryLoading, setHistoryLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Error | null>(null);
+
+  const normalizeError = useCallback((err: unknown, fallback: string): Error => {
+    if (err instanceof Error) return err;
+    return new ApiClientError("validation", fallback, "");
+  }, []);
 
   const loadHistory = useCallback(async () => {
     try {
@@ -22,11 +27,11 @@ export function useCouncilSession() {
       const payload = await listSessions();
       setHistory(payload.items);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load history");
+      setError(normalizeError(err, "Failed to load history"));
     } finally {
       setHistoryLoading(false);
     }
-  }, []);
+  }, [normalizeError]);
 
   useEffect(() => {
     void loadHistory();
@@ -53,9 +58,9 @@ export function useCouncilSession() {
       setMode("loaded");
     } catch (err) {
       setMode("error");
-      setError(err instanceof Error ? err.message : "Session failed");
+      setError(normalizeError(err, "Session failed"));
     }
-  }, [queryDraft]);
+  }, [normalizeError, queryDraft]);
 
   const loadSession = useCallback(async (sessionId: string) => {
     setSelectedSessionId(sessionId);
@@ -67,9 +72,9 @@ export function useCouncilSession() {
       setMode("loaded");
     } catch (err) {
       setMode("error");
-      setError(err instanceof Error ? err.message : "Unable to load session");
+      setError(normalizeError(err, "Unable to load session"));
     }
-  }, []);
+  }, [normalizeError]);
 
   return {
     mode,

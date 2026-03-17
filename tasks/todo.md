@@ -30,3 +30,19 @@
 - `python3 backend/scripts/sync_pg_essays.py`: discovered 229, fetched 120, failed 0.
 - `python3 backend/scripts/reindex.py` (from `/backend`): indexed 120 docs, 214 chunks; skipped 2 unchanged docs.
 - `POST /api/v1/ingest/sync-pg?max_essays=1`: returned 200 with expected payload (`fetched: 0`, `skipped: 1` on rerun).
+
+## UI Remediation - 2026-03-17
+- [x] Implement premium visual hierarchy and responsive shell refinements.
+- [x] Upgrade council panels (Round Table, Clash, Synthesis, Empty, Loading) for readability and consistency.
+- [x] Harden frontend API error handling with actionable misconfiguration and network guidance.
+- [x] Run `npm run typecheck` and `npm run build` for frontend verification.
+- [x] Document review notes and deployment guidance for Vercel env/base URL.
+
+## UI Remediation Review
+- Moved from flat dark dashboard styling to a lighter premium surface system while keeping burnt-orange accent identity.
+- Reworked mobile behavior with a proper history drawer + backdrop and clearer top-level hierarchy.
+- Added typed API error handling and surfaced actionable config guidance in the UI when API base URL is misconfigured.
+- Frontend verification:
+  - `npm run typecheck`: passed.
+  - `npm run build`: passed.
+- Deployment guidance: set `NEXT_PUBLIC_API_BASE_URL` to deployed backend URL (not frontend URL), and ensure Vercel Root Directory for the frontend project is `frontend`.
