@@ -46,3 +46,26 @@
   - `npm run typecheck`: passed.
   - `npm run build`: passed.
 - Deployment guidance: set `NEXT_PUBLIC_API_BASE_URL` to deployed backend URL (not frontend URL), and ensure Vercel Root Directory for the frontend project is `frontend`.
+
+## Backend Deployment - 2026-03-17
+- [x] Add Vercel Python backend entrypoint and routes config.
+- [x] Deploy backend service to Vercel production.
+- [x] Configure backend runtime env (`DATABASE_URL`, `ALLOWED_ORIGINS`) for serverless.
+- [x] Verify backend health endpoint and council session endpoint from deployed URL.
+- [x] Return final backend URL and frontend env value.
+
+## Backend Deployment Review
+- Added Vercel backend serverless entrypoint at `backend/api/index.py` and routing in `backend/vercel.json`.
+- Resolved Vercel build-size failure by moving heavy local-only dependencies (`sentence-transformers`, pytest stack) into `backend/requirements-dev.txt`; runtime deps remain in `backend/requirements.txt`.
+- Deployed backend URL:
+  - `https://backend-1jcvq4yn0-joytdh-gmailcoms-projects.vercel.app`
+  - stable alias: `https://backend-joytdh-gmailcoms-projects.vercel.app`
+- Project-level Vercel deployment protection disabled (`ssoProtection: null`) to make API publicly callable from browser clients.
+- Verified:
+  - `GET /health` returns `200 {"status":"ok"}`
+  - `GET /api/v1/council/sessions?limit=1` returns `200`
+  - `POST /api/v1/council/sessions` returns a valid council payload.
+- Updated frontend project env:
+  - `NEXT_PUBLIC_API_BASE_URL=https://backend-joytdh-gmailcoms-projects.vercel.app`
+- Redeployed frontend and re-aliased:
+  - `https://product-council-jet.vercel.app`
