@@ -171,10 +171,22 @@ class IngestionService:
     def _collect_sources(self) -> list[SourceDocument]:
         data_root = self.settings.data_root
         docs: list[SourceDocument] = []
+
+        # Support both legacy `pg` and newer `graham` directories for Paul Graham content.
         docs.extend(LocalFolderSource("paul_graham", data_root / "pg").list_documents())
+        docs.extend(LocalFolderSource("paul_graham", data_root / "graham").list_documents())
+
         docs.extend(LocalFolderSource("shreyas", data_root / "shreyas").list_documents())
         docs.extend(LocalFolderSource("operator_collective", data_root / "lenny_podcasts").list_documents())
         docs.extend(LocalFolderSource("ben_thompson", data_root / "stratechery").list_documents())
+        docs = [
+            doc
+            for doc in docs
+            if doc.title != 'README'
+            and doc.title != '_template'
+            and not doc.source_uri.endswith('/README.md')
+            and not doc.source_uri.endswith('/_template.md')
+        ]
         docs.extend(CodaExportDropAdapter(data_root / "shreyas" / "_drop").list_documents())
         docs.extend(StratecheryExportDropAdapter(data_root / "stratechery" / "_drop").list_documents())
         return docs
