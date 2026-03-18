@@ -160,29 +160,47 @@ def extract_paul_graham_essay_urls(html: str, base_url: str) -> list[str]:
 
 
 def parse_header_metadata(raw_text: str) -> tuple[str, dict[str, str]]:
-    lines = raw_text.splitlines()
-    if len(lines) < 2:
-        return raw_text, {}
+    text = raw_text
+    meta: dict[str, str] = {}
 
-    source_url_match = re.match(r"^Source URL:\s*(\S+)\s*$", lines[0].strip(), re.IGNORECASE)
-    if not source_url_match:
-        return raw_text, {}
+    frontmatter_match = re.match(r"^---\s*\n(.*?)\n---\s*\n?", text, re.DOTALL)
+    if frontmatter_match:
+        frontmatter = frontmatter_match.group(1)
+        text = text[frontmatter_match.end():]
+        for line in frontmatter.splitlines():
+            key_value = re.match(r"^([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)$", line.strip())
+            if not key_value:
+                continue
+            key = key_value.group(1).strip().lower()
+            value = key_value.group(2).strip().strip('"').strip("'")
+            if value:
+                meta[key] = value
 
-    source_title = ""
-    title_match = re.match(r"^Source Title:\s*(.+)\s*$", lines[1].strip(), re.IGNORECASE)
-    start_idx = 1
-    if title_match:
-        source_title = title_match.group(1).strip()
-        start_idx = 2
+    lines = text.splitlines()
+    if len(lines) >= 1:
+        source_url_match = re.match(r"^Source URL:\s*(\S+)\s*$", lines[0].strip(), re.IGNORECASE)
+        if source_url_match:
+            meta["source_url"] = source_url_match.group(1).strip()
+            source_title = ""
+            start_idx = 1
+            if len(lines) >= 2:
+                title_match = re.match(r"^Source Title:\s*(.+)\s*$", lines[1].strip(), re.IGNORECASE)
+                if title_match:
+                    source_title = title_match.group(1).strip()
+                    start_idx = 2
+            while start_idx < len(lines) and not lines[start_idx].strip():
+                start_idx += 1
+            clean_text = "\n".join(lines[start_idx:])
+            if source_title:
+                meta["source_title"] = source_title
+            return clean_text, meta
 
-    while start_idx < len(lines) and not lines[start_idx].strip():
-        start_idx += 1
+    if "url" in meta and "source_url" not in meta:
+        meta["source_url"] = meta["url"]
+    if "title" in meta and "source_title" not in meta:
+        meta["source_title"] = meta["title"]
 
-    clean_text = "\n".join(lines[start_idx:])
-    meta = {"source_url": source_url_match.group(1).strip()}
-    if source_title:
-        meta["source_title"] = source_title
-    return clean_text, meta
+    return text, meta
 
 
 def slugify(text: str) -> str:
