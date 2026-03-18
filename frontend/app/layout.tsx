@@ -4,8 +4,8 @@ import type { Metadata } from "next";
 import { ReactNode } from "react";
 
 export const metadata: Metadata = {
-  title: "The Strategy Council",
-  description: "Local-first multi-agent strategy debate workspace",
+  title: "Product Council",
+  description: "A premium local-first council of product and technology leaders for decision-grade strategy advice.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

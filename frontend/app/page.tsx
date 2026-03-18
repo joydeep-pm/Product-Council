@@ -4,11 +4,14 @@ import { AlertTriangle, CheckCircle2, Menu, Sparkles, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { ClashPanel } from "@/components/council/ClashPanel";
+import { CouncilRail } from "@/components/council/CouncilRail";
 import { EmptyState } from "@/components/council/EmptyState";
 import { HistorySidebar } from "@/components/council/HistorySidebar";
 import { LoadingState } from "@/components/council/LoadingState";
+import { OverviewStrip } from "@/components/council/OverviewStrip";
 import { PromptComposer } from "@/components/council/PromptComposer";
 import { RoundTablePanel } from "@/components/council/RoundTablePanel";
+import { SessionHero } from "@/components/council/SessionHero";
 import { SynthesisPanel } from "@/components/council/SynthesisPanel";
 import { useCouncilSession } from "@/hooks/useCouncilSession";
 import { ApiClientError, getApiBase } from "@/lib/api";
@@ -31,12 +34,16 @@ export default function HomePage() {
   const envApiBase = getApiBase();
 
   const apiHealth = useMemo(() => {
+    const localApi = envApiBase.includes("localhost") || envApiBase.includes("127.0.0.1");
+
     if (typeof window === "undefined") {
-      return { label: "API pending", tone: "neutral" as const };
+      return {
+        label: localApi ? "API ready" : "API configured",
+        tone: "ok" as const,
+      };
     }
 
     const isLocalUi = ["localhost", "127.0.0.1"].includes(window.location.hostname);
-    const localApi = envApiBase.includes("localhost") || envApiBase.includes("127.0.0.1");
 
     if (!isLocalUi && localApi) {
       return { label: "API misconfigured", tone: "warning" as const };
@@ -71,7 +78,7 @@ export default function HomePage() {
         return {
           title: "Backend returned an error",
           message: error.message,
-          help: "Check backend logs and verify data ingest/index has completed.",
+          help: "Check backend logs and verify local ingest/reindex has completed.",
           tone: "danger" as const,
         };
       }
@@ -86,7 +93,7 @@ export default function HomePage() {
   }, [error]);
 
   return (
-    <main className="relative mx-auto min-h-screen w-full max-w-[1600px] px-4 pb-8 pt-4 lg:px-6 lg:pb-10 lg:pt-6">
+    <main className="relative mx-auto min-h-screen w-full max-w-[1520px] px-4 pb-10 pt-4 lg:px-6 lg:pb-12 lg:pt-6 xl:px-8">
       <div
         className={`fixed inset-0 z-30 bg-black/35 transition ${isSidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"} lg:hidden`}
         onClick={() => setSidebarOpen(false)}
@@ -114,19 +121,16 @@ export default function HomePage() {
         />
       </div>
 
-      <header className="panel mb-4 rounded-3xl p-5 lg:mb-6 lg:p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-fg1">
-              <Sparkles size={12} />
-              The Strategy Council
+      <header className="mb-5 rounded-[2rem] px-1 py-1 lg:mb-7">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[rgba(196,90,44,0.14)] bg-white/70 text-accent shadow-[0_10px_24px_rgba(196,90,44,0.12)]">
+              <Sparkles size={14} />
             </div>
-            <h1 className="mt-3 text-2xl font-semibold leading-tight text-fg0 lg:text-[2rem]">
-              Four perspectives. One decision-ready strategy.
-            </h1>
-            <p className="mt-2 text-sm leading-relaxed text-fg1 lg:text-base">
-              Ask one product or strategic question. The council runs a round table, isolates the core friction, and synthesizes a tactical 30/60/90 day plan.
-            </p>
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.28em] text-fg1">Product Council</div>
+              <div className="mt-1 text-sm text-fg1">Four perspectives. One product decision.</div>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -149,24 +153,26 @@ export default function HomePage() {
         </div>
       </header>
 
-      <div className="grid min-h-[calc(100vh-12rem)] grid-cols-1 gap-4 lg:grid-cols-[320px_1fr] lg:gap-6">
-        <aside className="hidden lg:block">
-          <HistorySidebar
-            items={history}
-            selectedId={selectedSessionId}
-            isLoading={isHistoryLoading}
-            onSelect={(id) => {
-              void loadSession(id);
-            }}
-          />
+      <div className="grid min-h-[calc(100vh-10rem)] grid-cols-1 gap-6 xl:grid-cols-[235px_minmax(0,1fr)] xl:items-start xl:gap-10">
+        <aside className="hidden xl:block">
+          <div className="sticky top-6">
+            <HistorySidebar
+              items={history}
+              selectedId={selectedSessionId}
+              isLoading={isHistoryLoading}
+              onSelect={(id) => {
+                void loadSession(id);
+              }}
+            />
+          </div>
         </aside>
 
-        <section className="space-y-4 lg:space-y-5">
+        <section className="min-w-0 space-y-5 lg:space-y-6">
           <PromptComposer value={queryDraft} onChange={setQueryDraft} onSubmit={() => void submit()} isRunning={mode === "running"} />
 
           {errorMeta && (
             <section
-              className={`rounded-2xl border p-4 ${
+              className={`rounded-[1.6rem] border p-4 ${
                 errorMeta.tone === "warning"
                   ? "border-amber-600/35 bg-amber-50/80 text-amber-950"
                   : "border-red-500/35 bg-red-50/80 text-red-950"
@@ -186,11 +192,28 @@ export default function HomePage() {
             </section>
           )}
 
-          {!activeSession && mode !== "running" && <EmptyState />}
+          {!activeSession && mode !== "running" && (
+            <>
+              <EmptyState />
+              <OverviewStrip session={activeSession} historyCount={history.length} />
+            </>
+          )}
+
           {mode === "running" && <LoadingState />}
 
           {activeSession && (
             <>
+              <SessionHero session={activeSession} />
+
+              <div className="grid grid-cols-1 gap-4 2xl:grid-cols-[minmax(0,1fr)_280px] 2xl:items-start">
+                <OverviewStrip session={activeSession} historyCount={history.length} />
+                <aside className="hidden 2xl:block">
+                  <div className="sticky top-6">
+                    <CouncilRail session={activeSession} />
+                  </div>
+                </aside>
+              </div>
+
               <RoundTablePanel entries={activeSession.round_table} isLoading={false} />
               <ClashPanel clash={activeSession.clash} isLoading={false} />
               <SynthesisPanel synthesis={activeSession.synthesis} isLoading={false} />
