@@ -28,6 +28,108 @@ class CouncilOrchestrator:
         self.llm = LlmClient()
         self.personas: list[PersonaId] = ["paul_graham", "shreyas", "operator_collective", "ben_thompson"]
 
+    def _fallback_clash(self, query: str, round_table: list[PersonaResponse]) -> ClashResult:
+        lower_query = query.lower()
+        combined = " ".join(item.response.lower() for item in round_table)
+
+        if any(term in lower_query for term in ["ai", "copilot", "prototype", "workflow", "pm"]):
+            return ClashResult(
+                friction_point="Whether to win by owning the PM's core workflow first or by layering AI assistance on top of an already-crowded toolchain.",
+                why_it_matters="This determines whether the product earns daily habit and proprietary workflow context, or becomes a feature that incumbent tools can easily absorb.",
+                tradeoff_axes=[
+                    "workflow ownership vs assistant convenience",
+                    "faster validation vs deeper defensibility",
+                    "single-player utility vs team-scale coordination",
+                ],
+            )
+
+        if "pricing" in lower_query or "monet" in lower_query:
+            return ClashResult(
+                friction_point="Whether to optimize for rapid adoption with simpler pricing or capture value early with a more opinionated monetization model.",
+                why_it_matters="Pricing shape changes who adopts, what behavior gets reinforced, and how much room the company has to invest in the winning segment.",
+                tradeoff_axes=[
+                    "adoption speed vs monetization depth",
+                    "simplicity vs segmentation precision",
+                ],
+            )
+
+        if "enterprise" in lower_query or "self-serve" in lower_query or "gtm" in lower_query:
+            return ClashResult(
+                friction_point="Whether to narrow around one distribution motion or preserve optionality across multiple customer acquisition paths.",
+                why_it_matters="Splitting attention across GTM motions too early weakens learning loops, slows execution, and makes it harder to build a coherent product wedge.",
+                tradeoff_axes=[
+                    "single GTM motion vs channel optionality",
+                    "depth in one segment vs breadth across segments",
+                ],
+            )
+
+        if "prototype" in combined and "copilot" in combined:
+            return ClashResult(
+                friction_point="Whether the immediate wedge should be a faster workflow or a smarter assistant.",
+                why_it_matters="The wrong wedge can create novelty without habit, or habit without long-term strategic leverage.",
+                tradeoff_axes=["habit formation vs feature sophistication", "speed to value vs strategic moat"],
+            )
+
+        return ClashResult(
+            friction_point="Whether to choose a narrow wedge that compounds learning quickly or preserve flexibility across too many strategic options.",
+            why_it_matters="The first constraint a startup accepts often determines whether it learns fast enough to discover a durable advantage.",
+            tradeoff_axes=["focus vs optionality", "learning speed vs strategic breadth"],
+        )
+
+    def _fallback_synthesis(self, query: str, clash: ClashResult) -> SynthesisResult:
+        lower_query = query.lower()
+
+        if any(term in lower_query for term in ["ai", "copilot", "prototype", "workflow", "pm"]):
+            return SynthesisResult(
+                recommendation="Start with rapid prototyping workflows for individual PMs, then layer in AI assistance only where it materially improves iteration speed or decision quality. Do not start with broad collaboration or a general-purpose copilot.",
+                actions_30_60_90=Actions306090(
+                    days_0_30=[
+                        "Pick one PM workflow to own end-to-end, such as turning rough ideas into testable prototypes.",
+                        "Interview 10-15 PMs and identify the exact step where current tools create delay or rework.",
+                    ],
+                    days_31_60=[
+                        "Ship a narrow prototype workflow with one clearly differentiated AI assist, such as generating variants or turning specs into clickable drafts.",
+                        "Measure repeat usage from a small set of weekly active PM teams.",
+                    ],
+                    days_61_90=[
+                        "Expand only the parts of collaboration that reinforce the core workflow, such as review, comments, or handoff.",
+                        "Delay any broad copilot ambition until you see sustained pull and a clear proprietary context advantage.",
+                    ],
+                ),
+                risks=[
+                    "Building an AI layer that feels impressive but does not become part of the weekly PM workflow.",
+                    "Adding collaboration too early and recreating generic project-management software.",
+                ],
+                leading_indicators=[
+                    "weekly repeat prototype creation per active PM",
+                    "time from idea to first testable artifact",
+                    "percentage of sessions using the AI assist and continuing to a completed draft",
+                ],
+            )
+
+        if "enterprise" in lower_query or "self-serve" in lower_query or "gtm" in lower_query:
+            return SynthesisResult(
+                recommendation="Choose one primary GTM motion for the next two quarters and align product work tightly to it. Treat other channels as learning inputs, not co-equal bets.",
+                actions_30_60_90=Actions306090(
+                    days_0_30=["Pick the primary segment and buying motion.", "Rewrite roadmap priorities to serve that motion explicitly."],
+                    days_31_60=["Ship 2-3 features that reduce friction for that segment.", "Instrument conversion and retention for the chosen motion."],
+                    days_61_90=["Double down on the winning motion if signals improve.", "Cut side-channel experiments that do not support the wedge."],
+                ),
+                risks=["False positives from small-sample demand", "organizational thrash from supporting multiple motions at once"],
+                leading_indicators=["segment-specific activation", "sales cycle compression or self-serve conversion", "retention within the chosen wedge"],
+            )
+
+        return SynthesisResult(
+            recommendation="Make one sharp strategic choice, build around it for 90 days, and reject adjacent opportunities that dilute the learning loop.",
+            actions_30_60_90=Actions306090(
+                days_0_30=["Name the wedge explicitly.", "Define the user behavior that proves the wedge is working."],
+                days_31_60=["Ship against that wedge weekly.", "Review progress against one primary success metric."],
+                days_61_90=["Scale the winning path.", "Kill initiatives that do not reinforce the wedge."],
+            ),
+            risks=["mistaking activity for validated learning", "trying to preserve too many options"],
+            leading_indicators=["time to user value", "repeat usage", "decision cycle speed"],
+        )
+
     async def run_session(self, db: Session, query: str) -> CouncilSessionResponse:
         tasks = [self._run_persona(db, persona, query) for persona in self.personas]
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -51,27 +153,14 @@ class CouncilOrchestrator:
         clash_data = self.llm.generate_json(
             "You identify core strategic friction from multiple viewpoints.",
             clash_prompt(query, round_json),
-            {
-                "friction_point": "Execution sequencing versus strategic optionality.",
-                "why_it_matters": "Prioritization errors can burn runway and team focus.",
-                "tradeoff_axes": ["speed vs certainty", "focus vs flexibility"],
-            },
+            self._fallback_clash(query, round_table).model_dump(),
         )
         clash = ClashResult(**clash_data)
 
         synthesis_data = self.llm.generate_json(
             "You synthesize strategy into actionable plan.",
             synthesis_prompt(query, round_json, json.dumps(clash.model_dump())),
-            {
-                "recommendation": "Run a focused 90-day strategy cycle with explicit hypotheses.",
-                "actions_30_60_90": {
-                    "days_0_30": ["Define target segment", "Lock one north-star metric"],
-                    "days_31_60": ["Ship two high-confidence bets", "Collect decision-grade evidence"],
-                    "days_61_90": ["Double down on winning thesis", "Sunset weak initiatives"],
-                },
-                "risks": ["Overfitting early signals", "Team thrash from context switching"],
-                "leading_indicators": ["Activation rate", "Retention trend", "Cycle-time to decision"],
-            },
+            self._fallback_synthesis(query, clash).model_dump(),
         )
         synthesis = SynthesisResult(
             recommendation=synthesis_data.get("recommendation", "No recommendation generated."),
