@@ -33,6 +33,8 @@ def get_engine() -> Engine:
         elif settings.database_url.startswith("postgresql"):
             # Use pg8000 driver for PostgreSQL (pure Python, works in serverless)
             db_url = settings.database_url.replace("postgresql://", "postgresql+pg8000://")
+            # Remove sslmode parameter as pg8000 handles SSL differently
+            db_url = db_url.split("?sslmode=")[0].split("&sslmode=")[0]
             # PostgreSQL connection pool settings for production
             pool_config = {
                 "pool_pre_ping": True,
