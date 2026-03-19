@@ -1,6 +1,8 @@
 "use client";
 
 import { PersonaResponse } from "@/types/council";
+import { SourceCoverageIndicator } from "./SourceCoverageIndicator";
+import { CitationCard } from "./CitationCard";
 
 const PERSONA_THEME: Record<
   string,
@@ -75,32 +77,38 @@ export function RoundTablePanel({ entries, isLoading }: Props) {
                 </div>
               </div>
 
+              {/* Source Coverage Indicator */}
+              {entry.source_coverage && (
+                <SourceCoverageIndicator
+                  coverage={entry.source_coverage}
+                  aiGeneratedPct={entry.ai_generated_percentage}
+                  personaName={entry.persona_name}
+                />
+              )}
+
               <p className="whitespace-pre-wrap text-[13px] leading-[1.75] text-fg1">{entry.response}</p>
 
               {entry.citations.length > 0 && (
                 <div className="mt-4 border-t border-black/10 pt-3">
-                  <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-fg1">Evidence</div>
+                  <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-fg1">
+                    Evidence ({entry.citations.length} source{entry.citations.length !== 1 ? "s" : ""})
+                  </div>
                   <div className="space-y-2">
                     {entry.citations.map((citation, index) => (
-                      <a
+                      <CitationCard
                         key={`${citation.source_id}-${index}`}
-                        href={citation.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block rounded-[0.95rem] border border-black/10 bg-white/72 px-3 py-2 text-[11px] text-fg1 transition hover:border-black/20 hover:text-fg0"
-                      >
-                        <div className="font-medium">
-                          [{index + 1}] {citation.title}
-                        </div>
-                        <div className="mt-1 line-clamp-2 leading-relaxed opacity-85">{citation.excerpt}</div>
-                        {citation.framework_tag && (
-                          <div className="mt-2 inline-flex rounded-md border border-black/10 bg-black/5 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.12em]">
-                            {citation.framework_tag}
-                          </div>
-                        )}
-                      </a>
+                        citation={citation}
+                        index={index + 1}
+                      />
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Show message when no sources */}
+              {entry.citations.length === 0 && entry.source_coverage?.coverage_level === "none" && (
+                <div className="mt-4 rounded-lg border border-amber-200/40 bg-amber-50/60 px-3 py-2 text-[11px] text-amber-900">
+                  ⚠️ This perspective is based on general principles, not specific writings by {entry.persona_name}
                 </div>
               )}
             </article>

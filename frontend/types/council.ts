@@ -6,6 +6,14 @@ export interface Citation {
   url: string;
   excerpt: string;
   framework_tag?: string | null;
+  relevance_score: number;
+}
+
+export interface SourceCoverage {
+  total_chunks_found: number;
+  avg_relevance: number;
+  has_direct_coverage: boolean;
+  coverage_level: "high" | "medium" | "low" | "none";
 }
 
 export interface PersonaResponse {
@@ -13,6 +21,8 @@ export interface PersonaResponse {
   persona_name: string;
   response: string;
   citations: Citation[];
+  source_coverage: SourceCoverage;
+  ai_generated_percentage: number;
 }
 
 export interface ClashResult {

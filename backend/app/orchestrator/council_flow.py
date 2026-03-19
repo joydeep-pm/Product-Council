@@ -14,10 +14,12 @@ from app.orchestrator.prompts import PERSONA_NAMES, clash_prompt, persona_system
 from app.rag.retrieval import RetrievalService
 from app.schemas import (
     Actions306090,
+    Citation,
     ClashResult,
     CouncilSessionResponse,
     PersonaResponse,
     PersonaId,
+    SourceCoverage,
     SynthesisResult,
 )
 
@@ -143,6 +145,13 @@ class CouncilOrchestrator:
                         persona_name=PERSONA_NAMES[persona],
                         response="[unavailable]",
                         citations=[],
+                        source_coverage=SourceCoverage(
+                            total_chunks_found=0,
+                            avg_relevance=0.0,
+                            has_direct_coverage=False,
+                            coverage_level="none",
+                        ),
+                        ai_generated_percentage=100,
                     )
                 )
             else:
@@ -187,20 +196,40 @@ class CouncilOrchestrator:
         else:
             context_chunks = self.retrieval.retrieve(db, persona_id, query, top_k=6)
 
+        # Calculate source coverage
+        source_coverage = self._calculate_coverage(context_chunks)
+
+        # Build citations with relevance scores
+        citations = []
+        for chunk in context_chunks[:4]:
+            citation = Citation(
+                source_id=chunk.citation.source_id,
+                title=chunk.citation.title,
+                url=chunk.citation.url,
+                excerpt=chunk.citation.excerpt,
+                framework_tag=chunk.citation.framework_tag,
+                relevance_score=round(1.0 - chunk.distance, 2),
+            )
+            citations.append(citation)
+
         context = "\n\n".join([f"[Source] {chunk.citation.title}:\n{chunk.text}" for chunk in context_chunks])
-        citations = [chunk.citation for chunk in context_chunks[:4]]
 
         response = await asyncio.to_thread(
             self.llm.generate_text,
             persona_system_prompt(persona_id),
-            persona_user_prompt(query, context, persona_id),
+            persona_user_prompt(query, context, persona_id, source_coverage),
         )
+
+        # Estimate AI-generated percentage
+        ai_pct = self._estimate_ai_generation(source_coverage)
 
         return PersonaResponse(
             persona_id=persona_id,
             persona_name=PERSONA_NAMES[persona_id],
             response=response,
             citations=citations,
+            source_coverage=source_coverage,
+            ai_generated_percentage=ai_pct,
         )
 
     def _persist(self, db: Session, session: CouncilSessionResponse) -> None:
@@ -227,3 +256,45 @@ class CouncilOrchestrator:
         if not record:
             return None
         return CouncilSessionResponse(**json.loads(record.payload_json))
+
+    def _calculate_coverage(self, chunks: list) -> SourceCoverage:
+        """Calculate source coverage metrics from retrieved chunks."""
+        if not chunks:
+            return SourceCoverage(
+                total_chunks_found=0,
+                avg_relevance=0.0,
+                has_direct_coverage=False,
+                coverage_level="none",
+            )
+
+        distances = [c.distance for c in chunks]
+        avg_distance = sum(distances) / len(distances)
+        avg_relevance = 1.0 - avg_distance
+
+        # Determine coverage level
+        if avg_relevance > 0.75 and len(chunks) >= 4:
+            level = "high"
+        elif avg_relevance > 0.65 or len(chunks) >= 2:
+            level = "medium"
+        elif avg_relevance > 0.5 or len(chunks) >= 1:
+            level = "low"
+        else:
+            level = "none"
+
+        return SourceCoverage(
+            total_chunks_found=len(chunks),
+            avg_relevance=round(avg_relevance, 2),
+            has_direct_coverage=avg_relevance > 0.7,
+            coverage_level=level,
+        )
+
+    def _estimate_ai_generation(self, coverage: SourceCoverage) -> int:
+        """Estimate percentage of response that's AI-generated vs source-based."""
+        if coverage.coverage_level == "high":
+            return 20  # 80% source-based
+        elif coverage.coverage_level == "medium":
+            return 40  # 60% source-based
+        elif coverage.coverage_level == "low":
+            return 70  # 30% source-based
+        else:
+            return 95  # 95% AI extrapolation

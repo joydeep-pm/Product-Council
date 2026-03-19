@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.schemas import PersonaId
+from app.schemas import PersonaId, SourceCoverage
 
 
 PERSONA_NAMES: dict[PersonaId, str] = {
@@ -36,7 +36,7 @@ def persona_system_prompt(persona_id: PersonaId) -> str:
     )
 
 
-def persona_user_prompt(query: str, context: str, persona_id: PersonaId) -> str:
+def persona_user_prompt(query: str, context: str, persona_id: PersonaId, coverage: SourceCoverage | None = None) -> str:
     base = (
         "User query:\n"
         f"{query}\n\n"
@@ -61,12 +61,26 @@ def persona_user_prompt(query: str, context: str, persona_id: PersonaId) -> str:
     }
     base += f"\n\nPersona-specific instruction: {persona_instructions[persona_id]}"
 
+    # Add coverage-aware instructions
+    if coverage and (coverage.coverage_level == "none" or coverage.coverage_level == "low"):
+        coverage_instruction = (
+            "\n\nIMPORTANT: You have limited or no direct writings on this specific topic. "
+            "Be transparent about this upfront if relevant, then draw analogies from related work. "
+            "Be explicit when extrapolating vs. speaking from direct experience."
+        )
+        base += coverage_instruction
+
     if not context:
         return base
 
     extra = (
         "\n\nRetrieved local context (use selectively and do not invent citations or source claims):\n"
-        f"{context}"
+        f"{context}\n\n"
+        "CITATION REQUIREMENTS:\n"
+        "- When referencing your own work, cite the specific source naturally in your response\n"
+        "- Quote directly when possible\n"
+        "- If extrapolating, indicate: 'Based on my work on X...'\n"
+        "- Be explicit about confidence level when coverage is limited"
     )
     if persona_id == "operator_collective":
         extra += (

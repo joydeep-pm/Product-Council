@@ -15,6 +15,14 @@ class Citation(BaseModel):
     url: str
     excerpt: str
     framework_tag: str | None = None
+    relevance_score: float = 0.0
+
+
+class SourceCoverage(BaseModel):
+    total_chunks_found: int
+    avg_relevance: float
+    has_direct_coverage: bool
+    coverage_level: Literal["high", "medium", "low", "none"]
 
 
 class PersonaResponse(BaseModel):
@@ -22,6 +30,15 @@ class PersonaResponse(BaseModel):
     persona_name: str
     response: str
     citations: list[Citation] = Field(default_factory=list)
+    source_coverage: SourceCoverage = Field(
+        default_factory=lambda: SourceCoverage(
+            total_chunks_found=0,
+            avg_relevance=0.0,
+            has_direct_coverage=False,
+            coverage_level="none"
+        )
+    )
+    ai_generated_percentage: int = 0
 
 
 class ClashResult(BaseModel):
