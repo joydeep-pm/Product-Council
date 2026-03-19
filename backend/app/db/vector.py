@@ -13,6 +13,7 @@ class VectorStore:
     def __init__(self) -> None:
         self.settings = get_settings()
         self._vec_enabled = False
+        self._is_sqlite = self.settings.database_url.startswith("sqlite")
 
     def _db_path(self) -> str:
         url = self.settings.database_url
@@ -37,6 +38,11 @@ class VectorStore:
         return conn
 
     def ensure_table(self) -> None:
+        # Skip vector table creation for non-SQLite databases
+        if not self._is_sqlite:
+            logger.info("Skipping vector table creation for non-SQLite database")
+            return
+
         conn = self._connect()
         try:
             if self._vec_enabled:
@@ -60,7 +66,7 @@ class VectorStore:
             conn.close()
 
     def upsert(self, chunk_ids: list[int], embeddings: list[list[float]]) -> None:
-        if not chunk_ids:
+        if not chunk_ids or not self._is_sqlite:
             return
         conn = self._connect()
         try:
@@ -75,7 +81,7 @@ class VectorStore:
             conn.close()
 
     def delete(self, chunk_ids: list[int]) -> None:
-        if not chunk_ids:
+        if not chunk_ids or not self._is_sqlite:
             return
         conn = self._connect()
         try:
@@ -85,6 +91,10 @@ class VectorStore:
             conn.close()
 
     def search(self, query_embedding: list[float], k: int) -> list[tuple[int, float]]:
+        # Skip vector search for non-SQLite databases
+        if not self._is_sqlite:
+            return []
+
         conn = self._connect()
         if not self._vec_enabled:
             conn.close()
