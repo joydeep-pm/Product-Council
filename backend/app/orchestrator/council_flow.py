@@ -191,10 +191,8 @@ class CouncilOrchestrator:
         return session
 
     async def _run_persona(self, db: Session, persona_id: PersonaId, query: str) -> PersonaResponse:
-        if persona_id == "paul_graham":
-            context_chunks = []
-        else:
-            context_chunks = self.retrieval.retrieve(db, persona_id, query, top_k=6)
+        # Retrieve relevant context chunks for all personas (including Paul Graham)
+        context_chunks = self.retrieval.retrieve(db, persona_id, query, top_k=6)
 
         # Calculate source coverage
         source_coverage = self._calculate_coverage(context_chunks)
