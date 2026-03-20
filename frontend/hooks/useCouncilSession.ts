@@ -83,6 +83,14 @@ export function useCouncilSession() {
     }
   }, [normalizeError]);
 
+  const startNewSession = useCallback(() => {
+    setSelectedSessionId(null);
+    setActiveSession(null);
+    setMode("idle");
+    setError(null);
+    setQueryDraft("");
+  }, []);
+
   return {
     mode,
     queryDraft,
@@ -94,6 +102,7 @@ export function useCouncilSession() {
     error,
     submit,
     loadSession,
+    startNewSession,
     refreshHistory: loadHistory,
   };
 }

@@ -29,6 +29,7 @@ export default function HomePage() {
     error,
     submit,
     loadSession,
+    startNewSession,
   } = useCouncilSession();
 
   const envApiBase = getApiBase();
@@ -168,7 +169,14 @@ export default function HomePage() {
         </aside>
 
         <section className="min-w-0 space-y-5 lg:space-y-6">
-          <PromptComposer value={queryDraft} onChange={setQueryDraft} onSubmit={() => void submit()} isRunning={mode === "running"} />
+          <PromptComposer
+            value={queryDraft}
+            onChange={setQueryDraft}
+            onSubmit={() => void submit()}
+            isRunning={mode === "running"}
+            hasActiveSession={!!activeSession}
+            onStartNewSession={startNewSession}
+          />
 
           {errorMeta && (
             <section

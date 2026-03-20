@@ -52,6 +52,9 @@ export function HistorySidebar({ items, selectedId, onSelect, isLoading }: Props
               }`}
             >
               <div className="line-clamp-2 text-[12.5px] font-semibold leading-snug text-fg0">{item.query}</div>
+              <div className="mt-1 inline-flex rounded-full border border-black/10 bg-white/70 px-2 py-0.5 text-[9px] uppercase tracking-[0.14em] text-fg1">
+                {item.question_count} question{item.question_count !== 1 ? "s" : ""}
+              </div>
               {item.friction_summary && (
                 <div className="mt-1.5 inline-flex rounded-full border border-[rgba(196,90,44,0.12)] bg-[rgba(196,90,44,0.06)] px-2 py-0.5 text-[8.5px] uppercase tracking-[0.14em] text-[#8f451f]">
                   {item.friction_summary}

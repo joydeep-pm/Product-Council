@@ -14,7 +14,7 @@ class Settings(BaseSettings):
 
     app_name: str = "Strategy Council API"
     api_prefix: str = "/api/v1"
-    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001"
     cors_origins_raw: str | None = None
 
     database_url: str = Field(default=f"sqlite:///{(BASE_DIR / 'strategy_council.db').as_posix()}")
@@ -32,8 +32,13 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins(self) -> list[str]:
-        raw = self.cors_origins_raw or self.allowed_origins
-        return [item.strip() for item in raw.split(",") if item.strip()]
+        configured = [item.strip() for item in (self.cors_origins_raw or "").split(",") if item.strip()]
+        defaults = [item.strip() for item in self.allowed_origins.split(",") if item.strip()]
+        merged: list[str] = []
+        for origin in [*configured, *defaults]:
+            if origin and origin not in merged:
+                merged.append(origin)
+        return merged
 
 
 @lru_cache
