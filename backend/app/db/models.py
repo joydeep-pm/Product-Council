@@ -24,6 +24,17 @@ class SessionRecord(Base):
     )
 
 
+class SessionTurnRecord(Base):
+    __tablename__ = "session_turns"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    session_id: Mapped[str] = mapped_column(ForeignKey("sessions.id", ondelete="CASCADE"), index=True, nullable=False)
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+
+
 class Document(Base):
     __tablename__ = "documents"
     __table_args__ = (

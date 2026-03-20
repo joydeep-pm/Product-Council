@@ -5,10 +5,10 @@ import json
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.db.models import SessionRecord
+from app.db.models import SessionRecord, SessionTurnRecord
 from app.orchestrator.llm_client import LlmClient
 from app.orchestrator.prompts import PERSONA_NAMES, clash_prompt, persona_system_prompt, persona_user_prompt, synthesis_prompt
 from app.rag.retrieval import RetrievalService
@@ -18,6 +18,7 @@ from app.schemas import (
     ClashResult,
     CouncilSessionResponse,
     PersonaResponse,
+    SessionTurn,
     PersonaId,
     SourceCoverage,
     SynthesisResult,
@@ -133,7 +134,31 @@ class CouncilOrchestrator:
         )
 
     async def run_session(self, db: Session, query: str) -> CouncilSessionResponse:
-        tasks = [self._run_persona(db, persona, query) for persona in self.personas]
+        session = await self._generate_session_payload(query)
+        session = session.model_copy(update={"turns": [SessionTurn(question=query, created_at=session.created_at)]})
+        self._persist_new_session(db, session)
+        return session
+
+    async def append_question(self, db: Session, session_id: str, question: str) -> CouncilSessionResponse | None:
+        existing = self.get_session(db, session_id)
+        if not existing:
+            return None
+
+        latest = await self._generate_session_payload(question)
+        turns = [*existing.turns, SessionTurn(question=question, created_at=datetime.now(timezone.utc))]
+        updated = latest.model_copy(
+            update={
+                "session_id": existing.session_id,
+                "created_at": existing.created_at,
+                "query": existing.query,
+                "turns": turns,
+            }
+        )
+        self._persist_existing_session(db, updated)
+        return updated
+
+    async def _generate_session_payload(self, query: str) -> CouncilSessionResponse:
+        tasks = [self._run_persona(None, persona, query) for persona in self.personas]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         round_table: list[PersonaResponse] = []
@@ -178,19 +203,17 @@ class CouncilOrchestrator:
             leading_indicators=synthesis_data.get("leading_indicators", []),
         )
 
-        session = CouncilSessionResponse(
+        return CouncilSessionResponse(
             session_id=str(uuid.uuid4()),
             created_at=datetime.now(timezone.utc),
             query=query,
+            turns=[],
             round_table=round_table,
             clash=clash,
             synthesis=synthesis,
         )
 
-        self._persist(db, session)
-        return session
-
-    async def _run_persona(self, db: Session, persona_id: PersonaId, query: str) -> PersonaResponse:
+    async def _run_persona(self, db: Session | None, persona_id: PersonaId, query: str) -> PersonaResponse:
         # Retrieve relevant context chunks for all personas (including Paul Graham)
         context_chunks = self.retrieval.retrieve(db, persona_id, query, top_k=6)
 
@@ -207,6 +230,7 @@ class CouncilOrchestrator:
                 excerpt=chunk.citation.excerpt,
                 framework_tag=chunk.citation.framework_tag,
                 relevance_score=round(1.0 - chunk.distance, 2),
+                author=chunk.citation.author,
             )
             citations.append(citation)
 
@@ -230,7 +254,7 @@ class CouncilOrchestrator:
             ai_generated_percentage=ai_pct,
         )
 
-    def _persist(self, db: Session, session: CouncilSessionResponse) -> None:
+    def _persist_new_session(self, db: Session, session: CouncilSessionResponse) -> None:
         record = SessionRecord(
             id=session.session_id,
             query=session.query,
@@ -240,20 +264,51 @@ class CouncilOrchestrator:
             payload_json=json.dumps(session.model_dump(mode="json")),
         )
         db.add(record)
+        for turn in session.turns:
+            db.add(SessionTurnRecord(session_id=session.session_id, question=turn.question, created_at=turn.created_at))
         db.commit()
 
-    def list_sessions(self, db: Session, limit: int, offset: int) -> tuple[list[SessionRecord], int]:
+    def _persist_existing_session(self, db: Session, session: CouncilSessionResponse) -> None:
+        record = db.execute(select(SessionRecord).where(SessionRecord.id == session.session_id)).scalar_one()
+        record.status = "completed"
+        record.friction_summary = session.clash.friction_point
+        record.synthesis_summary = session.synthesis.recommendation[:180]
+        record.payload_json = json.dumps(session.model_dump(mode="json"))
+        latest_turn = session.turns[-1] if session.turns else None
+        if latest_turn:
+            db.add(SessionTurnRecord(session_id=session.session_id, question=latest_turn.question, created_at=latest_turn.created_at))
+        db.commit()
+
+    def list_sessions(self, db: Session, limit: int, offset: int) -> tuple[list[tuple[SessionRecord, int]], int]:
+        turn_counts = (
+            select(SessionTurnRecord.session_id, func.count(SessionTurnRecord.id).label("question_count"))
+            .group_by(SessionTurnRecord.session_id)
+            .subquery()
+        )
         items = db.execute(
-            select(SessionRecord).order_by(SessionRecord.created_at.desc()).limit(limit).offset(offset)
-        ).scalars().all()
-        total = db.execute(select(SessionRecord)).scalars().all()
-        return items, len(total)
+            select(SessionRecord, func.coalesce(turn_counts.c.question_count, 0))
+            .outerjoin(turn_counts, SessionRecord.id == turn_counts.c.session_id)
+            .order_by(SessionRecord.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        ).all()
+        total = db.execute(select(func.count()).select_from(SessionRecord)).scalar_one()
+        return items, total
 
     def get_session(self, db: Session, session_id: str) -> CouncilSessionResponse | None:
         record = db.execute(select(SessionRecord).where(SessionRecord.id == session_id)).scalar_one_or_none()
         if not record:
             return None
-        return CouncilSessionResponse(**json.loads(record.payload_json))
+        payload = json.loads(record.payload_json)
+        if "turns" not in payload or not payload["turns"]:
+            turn_rows = db.execute(
+                select(SessionTurnRecord).where(SessionTurnRecord.session_id == session_id).order_by(SessionTurnRecord.created_at.asc())
+            ).scalars().all()
+            payload["turns"] = [
+                {"question": row.question, "created_at": row.created_at.isoformat()}
+                for row in turn_rows
+            ] or [{"question": record.query, "created_at": record.created_at.isoformat()}]
+        return CouncilSessionResponse(**payload)
 
     def _calculate_coverage(self, chunks: list) -> SourceCoverage:
         """Calculate source coverage metrics from retrieved chunks."""

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { ApiClientError, createSession, getSession, listSessions } from "@/lib/api";
+import { ApiClientError, appendSessionQuestion, createSession, getSession, listSessions } from "@/lib/api";
 import { CouncilSession, SessionListItem } from "@/types/council";
 
 type Mode = "idle" | "running" | "loaded" | "error";
@@ -38,29 +38,36 @@ export function useCouncilSession() {
   }, [loadHistory]);
 
   const submit = useCallback(async () => {
-    if (!queryDraft.trim()) return;
+    const trimmed = queryDraft.trim();
+    if (!trimmed) return;
     setMode("running");
     setError(null);
     try {
-      const session = await createSession(queryDraft.trim());
+      const session = selectedSessionId
+        ? await appendSessionQuestion(selectedSessionId, trimmed)
+        : await createSession(trimmed);
+
       setActiveSession(session);
       setSelectedSessionId(session.session_id);
-      setHistory((prev) => [
-        {
+      setHistory((prev) => {
+        const nextItem = {
           session_id: session.session_id,
           created_at: session.created_at,
           query: session.query,
+          question_count: session.turns.length || 1,
           friction_summary: session.clash.friction_point,
           synthesis_summary: session.synthesis.recommendation,
-        },
-        ...prev,
-      ]);
+        };
+        const withoutCurrent = prev.filter((item) => item.session_id !== session.session_id);
+        return [nextItem, ...withoutCurrent];
+      });
+      setQueryDraft("");
       setMode("loaded");
     } catch (err) {
       setMode("error");
       setError(normalizeError(err, "Session failed"));
     }
-  }, [normalizeError, queryDraft]);
+  }, [normalizeError, queryDraft, selectedSessionId]);
 
   const loadSession = useCallback(async (sessionId: string) => {
     setSelectedSessionId(sessionId);

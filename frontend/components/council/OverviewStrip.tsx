@@ -49,9 +49,9 @@ export function OverviewStrip({ session, historyCount }: Props) {
   return (
     <section className="grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-4">
       <StatCard
-        label="Start Here"
-        value="Write 1 brief"
-        hint="Begin with one sharp decision prompt. The council responds only after your framing is clear."
+        label="Session"
+        value={session ? `${session.turns.length} question${session.turns.length !== 1 ? "s" : ""}` : "Write 1 brief"}
+        hint="Start with one sharp brief, then ask follow-up questions without losing the original context."
         icon={<MessageSquareQuote size={18} />}
       />
       <StatCard

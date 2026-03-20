@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, Flame, Orbit, PanelRightOpen, Sparkles } from "lucide-react";
+import { ArrowUpRight, Clock3, MessageSquareText, Orbit, Sparkles } from "lucide-react";
 
 import { CouncilSession } from "@/types/council";
 
@@ -31,6 +31,8 @@ function DetailCard({
 
 export function SessionHero({ session }: Props) {
   const eyebrow = session ? "Current council brief" : "Private advisory chamber";
+  const latestTurn = session?.turns?.[session.turns.length - 1] ?? null;
+  const isFollowUp = !!session && !!latestTurn && latestTurn.question !== session.query;
 
   return (
     <section className="relative overflow-hidden rounded-[2.25rem] border border-[rgba(54,31,16,0.1)] bg-[linear-gradient(135deg,rgba(255,252,248,0.94),rgba(247,236,226,0.82)_48%,rgba(241,225,213,0.78))] p-5 shadow-[0_24px_80px_rgba(73,41,20,0.08)] sm:p-6 lg:p-7">
@@ -54,26 +56,44 @@ export function SessionHero({ session }: Props) {
 
           <div className="mt-4 max-w-3xl border-l border-[rgba(196,90,44,0.24)] pl-4 text-[14px] leading-[1.8] text-[rgba(64,48,38,0.88)] lg:text-[0.98rem]">
             {session
-              ? "The council has completed its round table, surfaced the primary strategic fault line, and translated disagreement into a recommendation you can actually execute."
+              ? "This hero anchors the original brief. Follow-up questions update the analysis below without replacing the core decision context."
               : "Start in the prompt box below. Write one consequential product question, include context and constraints, and let the council stress-test your framing before you commit resources."}
           </div>
         </div>
 
+        {session && latestTurn && (
+          <div className="rounded-[1.5rem] border border-[rgba(54,31,16,0.09)] bg-white/62 p-4 shadow-[0_10px_24px_rgba(76,43,22,0.05)] backdrop-blur-sm">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0 flex-1">
+                <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/70 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-fg1">
+                  <MessageSquareText size={12} />
+                  {isFollowUp ? "Latest follow-up question" : "Current question"}
+                </div>
+                <div className="text-[1rem] leading-[1.7] text-fg0">{latestTurn.question}</div>
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/70 px-3 py-1 text-[11px] text-fg1">
+                <Clock3 size={12} />
+                {session.turns.length} question{session.turns.length !== 1 ? "s" : ""} in this session
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
           <DetailCard
             label="Flow"
-            copy="Round Table → Clash → Synthesis"
+            copy="Question thread → Round Table → Clash → Synthesis"
             icon={<Sparkles size={12} className="text-accent" />}
           />
           <DetailCard
-            label="Tone"
-            copy="Warm editorial rhythm, restrained chrome, more breathing room."
-            icon={<Flame size={12} className="text-accent" />}
+            label="Brief"
+            copy="The hero keeps the original decision brief stable while follow-ups refine the answer below."
+            icon={<MessageSquareText size={12} className="text-accent" />}
           />
           <DetailCard
             label="Memory"
-            copy="Every council session persists to SQLite and reloads instantly from history."
-            icon={<PanelRightOpen size={12} className="text-accent" />}
+            copy="Each session now keeps its question thread, not just one isolated prompt."
+            icon={<Clock3 size={12} className="text-accent" />}
           />
         </div>
       </div>

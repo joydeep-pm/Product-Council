@@ -7,6 +7,7 @@ export interface Citation {
   excerpt: string;
   framework_tag?: string | null;
   relevance_score: number;
+  author?: string | null;
 }
 
 export interface SourceCoverage {
@@ -44,10 +45,16 @@ export interface SynthesisResult {
   leading_indicators: string[];
 }
 
+export interface SessionTurn {
+  question: string;
+  created_at: string;
+}
+
 export interface CouncilSession {
   session_id: string;
   created_at: string;
   query: string;
+  turns: SessionTurn[];
   round_table: PersonaResponse[];
   clash: ClashResult;
   synthesis: SynthesisResult;
@@ -57,6 +64,7 @@ export interface SessionListItem {
   session_id: string;
   created_at: string;
   query: string;
+  question_count: number;
   friction_summary?: string | null;
   synthesis_summary?: string | null;
 }

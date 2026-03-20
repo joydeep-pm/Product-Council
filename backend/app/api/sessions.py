@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 
 from app.db.session import get_db_session
 from app.orchestrator.council_flow import CouncilOrchestrator
-from app.schemas import CouncilSessionResponse, SessionCreateRequest, SessionListItem, SessionListResponse
+from app.schemas import CouncilSessionResponse, SessionCreateRequest, SessionListItem, SessionListResponse, SessionQuestionRequest
 
 router = APIRouter(prefix="/council/sessions", tags=["council"])
 orchestrator = CouncilOrchestrator()
@@ -29,12 +29,22 @@ def list_sessions(
             session_id=row.id,
             created_at=row.created_at,
             query=row.query,
+            question_count=question_count,
             friction_summary=row.friction_summary,
             synthesis_summary=row.synthesis_summary,
         )
-        for row in rows
+        for row, question_count in rows
     ]
     return SessionListResponse(items=items, total=total)
+
+
+@router.post("/{session_id}/questions", response_model=CouncilSessionResponse, status_code=status.HTTP_200_OK)
+async def append_question(session_id: str, payload: SessionQuestionRequest) -> CouncilSessionResponse:
+    with get_db_session() as db:
+        session = await orchestrator.append_question(db, session_id, payload.question)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session
 
 
 @router.get("/{session_id}", response_model=CouncilSessionResponse, status_code=status.HTTP_200_OK)

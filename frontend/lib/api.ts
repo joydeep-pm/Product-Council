@@ -79,6 +79,15 @@ export async function listSessions(limit = 30, offset = 0): Promise<SessionListR
   });
 }
 
+export async function appendSessionQuestion(sessionId: string, question: string): Promise<CouncilSession> {
+  return requestJson<CouncilSession>(`${API_BASE}/api/v1/council/sessions/${sessionId}/questions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question }),
+    cache: "no-store",
+  });
+}
+
 export async function getSession(sessionId: string): Promise<CouncilSession> {
   return requestJson<CouncilSession>(`${API_BASE}/api/v1/council/sessions/${sessionId}`, {
     cache: "no-store",
